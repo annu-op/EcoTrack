@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EcoTrack Campus | Demo</title>
+<style>
+:root{--bg:#f4f7f4;--ink:#182820;--green:#16794b;--muted:#718078;--line:#e1e9e2}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px Arial,sans-serif}
+header{background:#122c21;color:white;padding:24px 5%;display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap}
+header h1{margin:0;font-size:25px}
+header p{margin:7px 0 0;color:#c1d5c7}
+button,input,select{font:inherit;padding:10px 12px;border-radius:9px;border:1px solid var(--line)}
+button{cursor:pointer;background:white;color:var(--ink)}
+button.primary{background:var(--green);color:white;border-color:var(--green)}
+main{max-width:1250px;margin:25px auto;padding:0 18px}
+.section-title{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+h2{font-size:19px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:15px;margin:18px 0}
+.card,.panel{background:white;border:1px solid var(--line);border-radius:15px;padding:19px}
+.card small,.muted{color:var(--muted)}
+.value{font-size:27px;font-weight:700;margin:12px 0 5px}
+.green{color:var(--green)}
+.layout{display:grid;grid-template-columns:1fr 1.5fr;gap:16px}
+.panel{margin-bottom:18px;min-width:0}
+.barrow{margin:18px 0}
+.barlabel{display:flex;justify-content:space-between;gap:10px;margin-bottom:8px}
+.bar{height:9px;border-radius:10px;background:#e9f0ea;overflow:hidden}
+.bar span{height:100%;display:block;background:#269b62;border-radius:10px}
+.controls{display:flex;gap:9px;flex-wrap:wrap;margin:14px 0}
+.controls input{flex:1;min-width:170px}
+table{width:100%;border-collapse:collapse;min-width:720px}
+th,td{text-align:left;padding:13px 11px;border-bottom:1px solid var(--line);font-size:13px}
+th{color:var(--muted);font-size:11px;text-transform:uppercase}
+.table-wrap{overflow-x:auto}
+.tag{display:inline-block;padding:5px 8px;border-radius:20px;background:#e9f5ed;color:#17633d;font-size:12px}
+.danger{color:#b52d2d}
+.formgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.formgrid label{display:grid;gap:5px;font-size:13px;color:var(--muted)}
+.formgrid input,.formgrid select{width:100%;color:var(--ink)}
+footer{text-align:center;padding:25px;color:var(--muted);font-size:12px}
+@media(max-width:760px){.layout{grid-template-columns:1fr}.value{font-size:24px}.formgrid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>🌿 EcoTrack Campus</h1>
+    <p>Campus resource intelligence · Interactive demo</p>
+  </div>
+  <button onclick="resetDemo()">↻ Reset example data</button>
+</header>
+<main>
+  <div class="section-title">
+    <div>
+      <h2>Campus overview</h2>
+      <div class="muted">Example readings are loaded automatically. No CSV import required.</div>
+    </div>
+    <span class="tag" id="recordCount">50 demo readings</span>
+  </div>
+  <section class="cards">
+    <div class="card"><small>⚡ Electricity recorded</small><div class="value" id="energy">—</div><small>Total kWh in current data</small></div>
+    <div class="card"><small>💧 Water recorded</small><div class="value" id="water">—</div><small>Total litres in current data</small></div>
+    <div class="card"><small>♻️ Waste recorded</small><div class="value" id="waste">—</div><small>Total kilograms in current data</small></div>
+    <div class="card"><small>₹ Estimated recorded cost</small><div class="value" id="cost">—</div><small>Sum of sample cost values</small></div>
+  </section>
+  <div class="layout">
+    <section class="panel">
+      <h2>Building energy profile</h2>
+      <div class="muted">Total electricity by campus location</div>
+      <div id="buildingBars"></div>
+    </section>
+    <section class="panel">
+      <div class="section-title">
+        <h2>Meter readings</h2>
+        <button class="primary" onclick="document.getElementById('addForm').scrollIntoView({behavior:'smooth'})">+ Add reading</button>
+      </div>
+      <div class="controls">
+        <input id="search" placeholder="Search building or notes..." oninput="renderTable()">
+        <select id="resourceFilter" onchange="renderTable()">
+          <option value="">All resources</option>
+          <option>Energy</option><option>Water</option><option>Waste</option>
+        </select>
+        <button onclick="downloadCSV()">Export CSV ↓</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>Building</th><th>Resource</th><th>Reading</th><th>Unit</th><th>Cost (₹)</th><th>Action</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <p class="muted" id="showing"></p>
+    </section>
+  </div>
+  <section class="panel" id="addForm">
+    <h2>Add a campus reading</h2>
+    <p class="muted">Enter your own data or use the preloaded example values above.</p>
+    <form id="readingForm">
+      <div class="formgrid">
+        <label>Date<input type="date" id="date" value="2026-10-28" required></label>
+        <label>Building
+          <select id="building">
+            <option>Academic Block A</option><option>Computer Lab</option>
+            <option>Hostel Block</option><option>Cafeteria</option><option>Library</option>
+          </select>
+        </label>
+        <label>Resource
+          <select id="resource" onchange="setUnit()"><option>Energy</option><option>Water</option><option>Waste</option></select>
+        </label>
+        <label>Reading<input id="reading" type="number" min="0" step="any" placeholder="e.g. 1250" required></label>
+        <label>Unit<input id="unit" value="kWh" required></label>
+        <label>Cost in rupees<input id="readingCost" type="number" min="0" step="any" value="0"></label>
+        <label style="grid-column:1/-1">Notes<input id="notes" placeholder="Optional notes"></label>
+      </div>
+      <div class="controls">
+        <button class="primary" type="submit">Save reading</button>
+        <button type="reset" onclick="setTimeout(setUnit,0)">Clear form</button>
+      </div>
+    </form>
+    <div id="message" class="muted"></div>
+  </section>
+  <footer>EcoTrack Campus · Sample data for demonstration only · Changes are saved in this browser</footer>
+</main>
+<script>
+const sample = [
+["2026-10-01","Academic Block A","Energy",1250,"kWh",15000,"Normal electricity usage"],
+["2026-10-01","Computer Lab","Energy",980,"kWh",11760,"Computer lab usage"],
+["2026-10-01","Hostel Block","Energy",1650,"kWh",19800,"Hostel electricity usage"],
+["2026-10-01","Cafeteria","Energy",720,"kWh",8640,"Kitchen equipment"],
+["2026-10-01","Library","Energy",410,"kWh",4920,"Library usage"],
+["2026-10-02","Academic Block A","Water",4200,"L",210,"Daily water consumption"],
+["2026-10-02","Computer Lab","Water",650,"L",32.5,"Cleaning usage"],
+["2026-10-02","Hostel Block","Water",9800,"L",490,"Hostel water usage"],
+["2026-10-02","Cafeteria","Water",2100,"L",105,"Kitchen water"],
+["2026-10-02","Library","Water",500,"L",25,"Library water"],
+["2026-10-03","Academic Block A","Waste",38,"kg",0,"General waste"],
+["2026-10-03","Computer Lab","Waste",6,"kg",0,"Lab packaging waste"],
+["2026-10-03","Hostel Block","Waste",54,"kg",0,"Hostel waste collection"],
+["2026-10-03","Cafeteria","Waste",82,"kg",0,"Food and packaging waste"],
+["2026-10-03","Library","Waste",9,"kg",0,"Paper waste"],
+["2026-10-04","Academic Block A","Energy",1310,"kWh",15720,"Higher weekday load"],
+["2026-10-04","Computer Lab","Energy",1450,"kWh",17400,"High lab usage example"],
+["2026-10-04","Hostel Block","Energy",1720,"kWh",20640,"Evening peak usage"],
+["2026-10-04","Cafeteria","Energy",760,"kWh",9120,"Kitchen equipment"],
+["2026-10-04","Library","Energy",430,"kWh",5160,"Library usage"],
+["2026-10-05","Academic Block A","Water",4400,"L",220,"Daily water usage"],
+["2026-10-05","Computer Lab","Water",700,"L",35,"Cleaning usage"],
+["2026-10-05","Hostel Block","Water",18200,"L",910,"High water usage example"],
+["2026-10-05","Cafeteria","Water",2300,"L",115,"Kitchen water"],
+["2026-10-05","Library","Water",520,"L",26,"Library usage"],
+["2026-10-06","Academic Block A","Waste",40,"kg",0,"General waste"],
+["2026-10-06","Computer Lab","Waste",5,"kg",0,"Packaging waste"],
+["2026-10-06","Hostel Block","Waste",58,"kg",0,"Hostel collection"],
+["2026-10-06","Cafeteria","Waste",125,"kg",0,"High food waste example"],
+["2026-10-06","Library","Waste",10,"kg",0,"Paper waste"],
+["2026-10-07","Academic Block A","Energy",1280,"kWh",15360,"Normal usage"],
+["2026-10-07","Computer Lab","Energy",1020,"kWh",12240,"Lab usage"],
+["2026-10-07","Hostel Block","Energy",1680,"kWh",20160,"Hostel usage"],
+["2026-10-07","Cafeteria","Energy",740,"kWh",8880,"Kitchen usage"],
+["2026-10-07","Library","Energy",420,"kWh",5040,"Library usage"],
+["2026-10-08","Academic Block A","Water",4300,"L",215,"Water usage"],
+["2026-10-08","Computer Lab","Water",680,"L",34,"Cleaning usage"],
+["2026-10-08","Hostel Block","Water",10200,"L",510,"Hostel usage"],
+["2026-10-08","Cafeteria","Water",2200,"L",110,"Kitchen usage"],
+["2026-10-08","Library","Water",510,"L",25.5,"Library usage"],
+["2026-10-09","Academic Block A","Waste",42,"kg",0,"General waste"],
+["2026-10-09","Computer Lab","Waste",7,"kg",0,"Lab waste"],
+["2026-10-09","Hostel Block","Waste",56,"kg",0,"Hostel collection"],
+["2026-10-09","Cafeteria","Waste",88,"kg",0,"Food waste"],
+["2026-10-09","Library","Waste",11,"kg",0,"Paper waste"],
+["2026-10-10","Academic Block A","Energy",1800,"kWh",21600,"High usage example"],
+["2026-10-10","Computer Lab","Energy",1100,"kWh",13200,"Lab usage"],
+["2026-10-10","Hostel Block","Energy",1750,"kWh",21000,"Hostel usage"],
+["2026-10-10","Cafeteria","Energy",790,"kWh",9480,"Kitchen usage"],
+["2026-10-10","Library","Energy",440,"kWh",5280,"Library usage"]
+];
+let readings;
+try { readings = JSON.parse(localStorage.getItem("ecotrack-demo-readings")) || sample.map((r,i)=>({id:i+1,date:r[0],building:r[1],resource:r[2],reading:r[3],unit:r[4],cost:r[5],notes:r[6]})); }
+catch(e) { readings=sample.map((r,i)=>({id:i+1,date:r[0],building:r[1],resource:r[2],reading:r[3],unit:r[4],cost:r[5],notes:r[6]})); }
+function save(){try{localStorage.setItem("ecotrack-demo-readings",JSON.stringify(readings))}catch(e){}}
+function fmt(n){return Number(n).toLocaleString("en-IN",{maximumFractionDigits:2})}
+function render(){
+ document.getElementById("energy").textContent=fmt(readings.filter(r=>r.resource==="Energy").reduce((s,r)=>s+Number(r.reading),0))+" kWh";
+ document.getElementById("water").textContent=fmt(readings.filter(r=>r.resource==="Water").reduce((s,r)=>s+Number(r.reading),0))+" L";
+ document.getElementById("waste").textContent=fmt(readings.filter(r=>r.resource==="Waste").reduce((s,r)=>s+Number(r.reading),0))+" kg";
+ document.getElementById("cost").textContent="₹"+fmt(readings.reduce((s,r)=>s+Number(r.cost||0),0));
+ document.getElementById("recordCount").textContent=readings.length+" readings";
+ const buildings=[...new Set(readings.map(r=>r.building))];
+ const totals=buildings.map(b=>({b,total:readings.filter(r=>r.building===b&&r.resource==="Energy").reduce((s,r)=>s+Number(r.reading),0)}));
+ const max=Math.max(1,...totals.map(x=>x.total));
+ document.getElementById("buildingBars").innerHTML=totals.map(x=>`<div class="barrow"><div class="barlabel"><span>${esc(x.b)}</span><b>${fmt(x.total)} kWh</b></div><div class="bar"><span style="width:${x.total/max*100}%"></span></div></div>`).join("")||"No readings yet";
+ renderTable();
+}
+function renderTable(){
+ const q=document.getElementById("search").value.toLowerCase(), f=document.getElementById("resourceFilter").value;
+ const list=readings.filter(r=>(!f||r.resource===f)&&[r.building,r.notes,r.resource].join(" ").toLowerCase().includes(q)).sort((a,b)=>b.date.localeCompare(a.date));
+ document.getElementById("rows").innerHTML=list.map(r=>`<tr><td>${esc(r.date)}</td><td>${esc(r.building)}</td><td><span class="tag">${esc(r.resource)}</span></td><td>${fmt(r.reading)}</td><td>${esc(r.unit)}</td><td>₹${fmt(r.cost||0)}</td><td><button class="danger" onclick="removeReading(${r.id})">Delete</button></td></tr>`).join("");
+ document.getElementById("showing").textContent=`Showing ${list.length} of ${readings.length} readings`;
+}
+function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function setUnit(){document.getElementById("unit").value=({"Energy":"kWh","Water":"L","Waste":"kg"})[document.getElementById("resource").value]}
+document.getElementById("readingForm").addEventListener("submit",e=>{
+ e.preventDefault();
+ readings.push({id:Date.now(),date:document.getElementById("date").value,building:document.getElementById("building").value,resource:document.getElementById("resource").value,reading:Number(document.getElementById("reading").value),unit:document.getElementById("unit").value,cost:Number(document.getElementById("readingCost").value||0),notes:document.getElementById("notes").value});
+ save();render();document.getElementById("message").textContent="Reading saved successfully.";document.getElementById("reading").value="";document.getElementById("notes").value="";
+});
+function removeReading(id){if(confirm("Delete this reading?")){readings=readings.filter(r=>r.id!==id);save();render()}}
+function resetDemo(){if(confirm("Restore the original example readings?")){readings=sample.map((r,i)=>({id:i+1,date:r[0],building:r[1],resource:r[2],reading:r[3],unit:r[4],cost:r[5],notes:r[6]}));save();render()}}
+function downloadCSV(){
+ const cols=["date","building","resource","reading","unit","cost","notes"];
+ const lines=[cols.join(","),...readings.map(r=>cols.map(k=>'"'+String(r[k]??"").replace(/"/g,'""')+'"').join(","))];
+ const blob=new Blob(["\uFEFF"+lines.join("\r\n")],{type:"text/csv;charset=utf-8;"});
+ const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="EcoTrack_Campus_Readings.csv";a.click();URL.revokeObjectURL(a.href);
+}
+render();
+</script>
+</body>
+</html>
